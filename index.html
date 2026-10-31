@@ -44,7 +44,7 @@ small { color: var(--muted); font-size: 12px; line-height: 1.5; text-align: cent
 <div class="box">
   <h1>Meal Planner</h1>
   <div class="spin" id="spin"></div>
-  <p id="msg">Проверяю обновление…</p>
+  <p id="msg" hidden>Проверяю обновление…</p>
   <div class="box" id="setup" hidden>
     <label>1. App key (Dropbox App Console → Settings)<input id="key" spellcheck="false" autocomplete="off"></label>
     <button id="open">2. Открыть Dropbox → Allow</button>
@@ -66,7 +66,8 @@ small { color: var(--muted); font-size: 12px; line-height: 1.5; text-align: cent
   var LS = 'meal-planner.';
   var SCOPES = 'files.metadata.read files.content.read files.content.write';
   var $ = function (s) { return document.querySelector(s); };
-  function say(t, busy) { $('#msg').textContent = t; $('#spin').hidden = !busy; }
+  // busy = only the spinner (user: no long text under it); the text shows only when something needs the user
+  function say(t, busy) { $('#msg').textContent = t; $('#msg').hidden = !!busy; $('#spin').hidden = !busy; }
   function lsGet(k) { try { return localStorage.getItem(LS + k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v == null) localStorage.removeItem(LS + k); else localStorage.setItem(LS + k, String(v)); } catch (e) {} }
   // The web page (https) keeps itself for offline use.
