@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Meal Planner</title>
+<style>
+:root { --bg: #f5f5f2; --panel: #fff; --text: #222421; --muted: #7a7d77; --line: #e2e2dd; --accent: #2f8a55; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #151715; --panel: #1e211e; --text: #e6e8e4; --muted: #949891; --line: #333833; --accent: #5fbf85; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; padding: 16px; }
+.box { width: min(400px, 100%); display: flex; flex-direction: column; gap: 12px; }
+h1 { font-size: 24px; margin: 0; text-align: center; }
+#msg { text-align: center; color: var(--muted); margin: 0; }
+label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; }
+input { font: inherit; font-weight: 400; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); padding: 9px 10px; }
+button { font: inherit; height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 0 14px; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.row { display: flex; gap: 6px; } .row input { flex: 1; }
+[hidden] { display: none !important; }
+small { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Meal Planner</h1>
+  <p id="msg">Проверяю обновление…</p>
+  <div class="box" id="setup" hidden>
+    <label>1. App key (Dropbox App Console → Settings)<input id="key" spellcheck="false" autocomplete="off"></label>
+    <button id="open">2. Открыть Dropbox → Allow</button>
+    <a id="openLink" target="_blank" rel="noopener" hidden>Ничего не открылось? Нажмите здесь.</a>
+    <label>3. Вставьте код из Dropbox<span class="row"><input id="code" spellcheck="false" autocomplete="off"><button class="primary" id="connect">Подключить</button></span></label>
+    <small>Один раз. Потом эта страница сама берёт новую версию приложения из вашего Dropbox.</small>
+  </div>
+  <button id="retry" hidden>Ещё раз</button>
+</div>
+<script>
+// Loader for Meal Planner: the web page for phone and iPad (GitHub Pages). It never changes: each time it opens,
+// it asks Dropbox (the app folder) for the newest meal-planner.html, keeps a copy in this browser and
+// opens it in this page. No internet: the kept copy opens. A new version that does not start (two
+// tries) is left for the last good one. The Dropbox connection is the app's own (IndexedDB
+// 'meal-planner', key 'dropbox'). Everything is inside this function: the app runs in this same page.
+(function () {
+  'use strict';
+  var APP = '/meal-planner.html';
+  var LS = 'meal-planner.';
+  var SCOPES = 'files.metadata.read files.content.read files.content.write';
+  var $ = function (s) { return document.querySelector(s); };
+  function say(t) { $('#msg').textContent = t; }
+  function lsGet(k) { try { return localStorage.getItem(LS + k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { if (v == null) localStorage.removeItem(LS + k); else localStorage.setItem(LS + k, String(v)); } catch (e) {} }
+  // The web page (https) keeps itself for offline use.
+  if (location.protocol === 'https:' && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+
+  function openDb(name) {
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open(name, 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
+      r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); };
+    });
+  }
+  function dbGet(db, k) { return new Promise(function (res) { var q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = function () { res(q.result); }; q.onerror = function () { res(undefined); }; }); }
+  function dbSet(db, k, v) { return new Promise(function (res, rej) { var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = function () { rej(t.error); }; }); }
+
+  var appDb, myDb, dbx;
+  function errText(t, st) { try { var j = JSON.parse(t); return st + ': ' + (j.error_summary || j.error_description || JSON.stringify(j.error)); } catch (e) { return st + ': ' + (t || '').slice(0, 300); } }
+  function withTimeout(p, ms) { return Promise.race([p, new Promise(function (_, rej) { setTimeout(function () { rej(new Error('Dropbox не отвечает')); }, ms); })]); }
+  async function token() {
+    if (dbx.access && dbx.exp > Date.now() + 60000) return dbx.access;
+    var r = await fetch('https://api.dropboxapi.com/oauth2/token', { method: 'POST', body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: dbx.refresh, client_id: dbx.key }) });
+    var t = await r.text();
+    if (!r.ok) throw new Error('вход в Dropbox ' + errText(t, r.status));
+    var j = JSON.parse(t); dbx.access = j.access_token; dbx.exp = Date.now() + (j.expires_in || 14400) * 1000;
+    await dbSet(appDb, 'dropbox', dbx);
+    return dbx.access;
+  }
+  async function rpc(name, arg) {
+    return fetch('https://api.dropboxapi.com/2/' + name, { method: 'POST', headers: { Authorization: 'Bearer ' + await token(), 'Content-Type': 'application/json' }, body: JSON.stringify(arg) });
+  }
+  function run(app, info) {
+    try { appDb.close(); myDb.close(); } catch (e) {}
+    window.MP_STARTER = info;
+    document.open(); document.write(app.html); document.close();
+  }
+
+  async function main() {
+    $('#setup').hidden = true; $('#retry').hidden = true; say('Проверяю обновление…');
+    try { appDb = await openDb('meal-planner'); myDb = await openDb('meal-planner-starter'); }
+    catch (e) { say('Этот браузер не даёт хранить данные: ' + e.message); return; }
+    dbx = await dbGet(appDb, 'dropbox');
+    var app = await dbGet(myDb, 'app'), prev = await dbGet(myDb, 'prev');
+    var good = lsGet('starterGood'), tryRev = lsGet('starterTry'), tries = +(lsGet('starterTries') || 0);
+    var msg = '';
+    if (!dbx || !dbx.refresh) {
+      if (app) { run(app, { rev: app.rev, msg: 'Dropbox не подключён: без обновлений.' }); return; }
+      showSetup(); return;
+    }
+    try {
+      var m = await withTimeout(rpc('files/get_metadata', { path: APP }), 8000), mt = await m.text();
+      if (m.status === 409 && mt.indexOf('not_found') >= 0) throw new Error('в Dropbox ещё нет приложения (запустите помощник на ПК)');
+      if (!m.ok) throw new Error(errText(mt, m.status));
+      var rev = JSON.parse(mt).rev;
+      if (!app || app.rev !== rev) {
+        say('Загружаю новую версию…');
+        var l = await rpc('files/get_temporary_link', { path: APP }), lt = await l.text();
+        if (!l.ok) throw new Error(errText(lt, l.status));
+        var g = await fetch(JSON.parse(lt).link);
+        if (!g.ok) throw new Error('загрузка ' + g.status);
+        var html = await g.text();
+        if (html.indexOf('<meta name="meal-planner-app"') < 0) throw new Error('файл в Dropbox — не приложение');
+        if (app && app.rev === good) { prev = app; await dbSet(myDb, 'prev', prev); }
+        app = { rev: rev, html: html, at: Date.now() };
+        await dbSet(myDb, 'app', app);
+      }
+    } catch (e) {
+      console.warn('starter', e);
+      if (!app) { say('Не получилось загрузить приложение: ' + e.message); $('#retry').hidden = false; return; }
+      msg = 'Без проверки обновления: ' + e.message;
+    }
+    if (app.rev !== good) {
+      if (tryRev !== app.rev) { tryRev = app.rev; tries = 0; }
+      if (tries >= 2 && prev && prev.rev === good) { run(prev, { rev: prev.rev, msg: 'Новая версия не запустилась. Открыта прошлая.' }); return; }
+      lsSet('starterTry', tryRev); lsSet('starterTries', tries + 1);
+    }
+    run(app, { rev: app.rev, msg: msg });
+  }
+
+  var auth = null;
+  function b64url(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  async function prepare() {
+    try { auth = JSON.parse(lsGet('dropboxAuth') || 'null'); } catch (e) { auth = null; }
+    if (auth) return;
+    var abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~', v = '';
+    var rnd = crypto.getRandomValues(new Uint8Array(64));
+    for (var i = 0; i < rnd.length; i++) v += abc[rnd[i] % abc.length];
+    var c = v, md = 'plain';
+    try { if (crypto.subtle) { c = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v))); md = 'S256'; } } catch (e) {}
+    auth = { v: v, c: c, m: md }; lsSet('dropboxAuth', JSON.stringify(auth));
+  }
+  function showSetup() { say('Подключите Dropbox один раз.'); $('#key').value = lsGet('dropboxKey') || ''; $('#setup').hidden = false; prepare(); }
+  $('#open').onclick = function () {
+    var key = $('#key').value.trim();
+    if (!key) { say('Сначала вставьте App key.'); return; }
+    if (!auth) { say('Секунду, нажмите ещё раз.'); return; }
+    lsSet('dropboxKey', key);
+    var url = 'https://www.dropbox.com/oauth2/authorize?' + new URLSearchParams({ client_id: key, response_type: 'code', token_access_type: 'offline', code_challenge: auth.c, code_challenge_method: auth.m, scope: SCOPES });
+    var a = $('#openLink'); a.href = url; a.hidden = false;
+    try { window.open(url, '_blank'); } catch (e) {}
+    say('В Dropbox: Continue → Allow. Скопируйте код и вернитесь сюда.');
+  };
+  $('#connect').onclick = async function () {
+    var key = $('#key').value.trim(), code = $('#code').value.trim();
+    if (!key || !code || !auth) { say('Сначала шаги 1 и 2, потом код.'); return; }
+    say('Подключаю…');
+    try {
+      var r = await fetch('https://api.dropboxapi.com/oauth2/token', { method: 'POST', body: new URLSearchParams({ code: code, grant_type: 'authorization_code', code_verifier: auth.v, client_id: key }) });
+      var t = await r.text();
+      if (!r.ok) throw new Error(errText(t, r.status));
+      var j = JSON.parse(t);
+      if (!j.refresh_token) throw new Error('Dropbox не дал refresh token');
+      await dbSet(appDb, 'dropbox', { key: key, refresh: j.refresh_token, access: j.access_token, exp: Date.now() + (j.expires_in || 14400) * 1000, rev: '' });
+      lsSet('dropboxAuth', null);
+      main();
+    } catch (e) { say('Не подключено: ' + e.message); }
+  };
+  $('#retry').onclick = main;
+  main();
+})();
+</script>
+</body>
+</html>
