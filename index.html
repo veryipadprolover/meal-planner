@@ -6,25 +6,40 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Meal Planner</title>
 <style>
-:root { --bg: #f5f5f2; --panel: #fff; --text: #222421; --muted: #7a7d77; --line: #e2e2dd; --accent: #2f8a55; color-scheme: light; }
-@media (prefers-color-scheme: dark) { :root { --bg: #151715; --panel: #1e211e; --text: #e6e8e4; --muted: #949891; --line: #333833; --accent: #5fbf85; color-scheme: dark; } }
+/* the same look as the app (user): its colours, serif italic name, soft background; light / dark / the app's ⚙ choice */
+:root { --bg: #f6f1ee; --bg-a: #f9e6e3; --bg-b: #ebe7f4; --panel: #fffdfb; --panel2: #faf5f2; --text: #3a2f34; --muted: #94848b; --line: #ecdfdc;
+  --accent: #b46f7d; --accent-ink: #fff; --accent-soft: #f6e4e7; --shadow: 0 8px 28px rgba(120, 70, 85, .12);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; color-scheme: light; }
+:root[data-theme="dark"] { --bg: #1c191d; --bg-a: #2a2026; --bg-b: #211f2b; --panel: #272228; --panel2: #2e292f; --text: #f2e9eb; --muted: #a5969d; --line: #3c353b;
+  --accent: #e3a3ae; --accent-ink: #241d22; --accent-soft: #3d2f37; --shadow: 0 8px 28px rgba(0, 0, 0, .45); color-scheme: dark; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #1c191d; --bg-a: #2a2026; --bg-b: #211f2b; --panel: #272228; --panel2: #2e292f; --text: #f2e9eb; --muted: #a5969d; --line: #3c353b;
+  --accent: #e3a3ae; --accent-ink: #241d22; --accent-soft: #3d2f37; --shadow: 0 8px 28px rgba(0, 0, 0, .45); color-scheme: dark; } }
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, sans-serif; padding: 16px; }
-.box { width: min(400px, 100%); display: flex; flex-direction: column; gap: 12px; }
-h1 { font-size: 24px; margin: 0; text-align: center; }
-#msg { text-align: center; color: var(--muted); margin: 0; }
-label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; }
-input { font: inherit; font-weight: 400; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); padding: 9px 10px; }
-button { font: inherit; height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 0 14px; cursor: pointer; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.row { display: flex; gap: 6px; } .row input { flex: 1; }
+body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(60% 45% at 0% 0%, var(--bg-a), transparent 70%) fixed, radial-gradient(60% 45% at 100% 100%, var(--bg-b), transparent 70%) fixed, var(--bg); }
+.box { width: min(400px, 100%); display: flex; flex-direction: column; align-items: center; gap: 22px; }
+h1 { margin: 0; font: italic 400 34px/1.1 var(--serif); letter-spacing: .3px; text-align: center; }
+.spin { width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#msg { margin: 0; max-width: 320px; text-align: center; color: var(--muted); font-size: 13px; line-height: 1.55; }
+#setup { width: 100%; align-items: stretch; gap: 16px; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+label { display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 600; }
+input { font: inherit; font-weight: 400; width: 100%; min-width: 0; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); color: var(--text); padding: 0 12px; }
+input:focus { outline: none; border-color: var(--accent); }
+button { font: inherit; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 0 16px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+a { color: var(--accent); font-size: 13px; text-align: center; }
+.row { display: flex; gap: 8px; } .row input { flex: 1; }
 [hidden] { display: none !important; }
-small { color: var(--muted); font-size: 12px; }
+small { color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center; }
 </style>
+<script>try { var t = localStorage.getItem('meal-planner.theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
 <body>
 <div class="box">
   <h1>Meal Planner</h1>
+  <div class="spin" id="spin"></div>
   <p id="msg">Проверяю обновление…</p>
   <div class="box" id="setup" hidden>
     <label>1. App key (Dropbox App Console → Settings)<input id="key" spellcheck="false" autocomplete="off"></label>
@@ -47,7 +62,7 @@ small { color: var(--muted); font-size: 12px; }
   var LS = 'meal-planner.';
   var SCOPES = 'files.metadata.read files.content.read files.content.write';
   var $ = function (s) { return document.querySelector(s); };
-  function say(t) { $('#msg').textContent = t; }
+  function say(t, busy) { $('#msg').textContent = t; $('#spin').hidden = !busy; }
   function lsGet(k) { try { return localStorage.getItem(LS + k); } catch (e) { return null; } }
   function lsSet(k, v) { try { if (v == null) localStorage.removeItem(LS + k); else localStorage.setItem(LS + k, String(v)); } catch (e) {} }
   // The web page (https) keeps itself for offline use.
@@ -85,7 +100,7 @@ small { color: var(--muted); font-size: 12px; }
   }
 
   async function main() {
-    $('#setup').hidden = true; $('#retry').hidden = true; say('Проверяю обновление…');
+    $('#setup').hidden = true; $('#retry').hidden = true; say('Проверяю обновление…', true);
     try { appDb = await openDb('meal-planner'); myDb = await openDb('meal-planner-starter'); }
     catch (e) { say('Этот браузер не даёт хранить данные: ' + e.message); return; }
     dbx = await dbGet(appDb, 'dropbox');
@@ -102,7 +117,7 @@ small { color: var(--muted); font-size: 12px; }
       if (!m.ok) throw new Error(errText(mt, m.status));
       var rev = JSON.parse(mt).rev;
       if (!app || app.rev !== rev) {
-        say('Загружаю новую версию…');
+        say('Загружаю новую версию…', true);
         var l = await rpc('files/get_temporary_link', { path: APP }), lt = await l.text();
         if (!l.ok) throw new Error(errText(lt, l.status));
         var g = await fetch(JSON.parse(lt).link);
@@ -152,7 +167,7 @@ small { color: var(--muted); font-size: 12px; }
   $('#connect').onclick = async function () {
     var key = $('#key').value.trim(), code = $('#code').value.trim();
     if (!key || !code || !auth) { say('Сначала шаги 1 и 2, потом код.'); return; }
-    say('Подключаю…');
+    say('Подключаю…', true);
     try {
       var r = await fetch('https://api.dropboxapi.com/oauth2/token', { method: 'POST', body: new URLSearchParams({ code: code, grant_type: 'authorization_code', code_verifier: auth.v, client_id: key }) });
       var t = await r.text();
