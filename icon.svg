@@ -1,33 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Meal Planner icon: the app's rose, a cream plate, a sage sprig. Full square (iOS / Android round the corners themselves). -->
+  <!-- Meal Planner icon (user picked "night plate"): the app's dark theme, a rose plate, a sage sprig. Full square (iOS / Android round the corners themselves). -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#d4949f"/>
-      <stop offset="1" stop-color="#a15d6c"/>
-    </linearGradient>
-    <radialGradient id="glow" cx=".28" cy=".22" r=".7">
-      <stop offset="0" stop-color="#fbe9ea" stop-opacity=".45"/>
-      <stop offset="1" stop-color="#fbe9ea" stop-opacity="0"/>
+    <radialGradient id="glow" cx=".5" cy=".46" r=".62">
+      <stop offset="0" stop-color="#4a3540"/>
+      <stop offset="1" stop-color="#231b20"/>
     </radialGradient>
+    <linearGradient id="plate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecb3bd"/>
+      <stop offset="1" stop-color="#d48f9c"/>
+    </linearGradient>
     <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8fa898"/>
-      <stop offset="1" stop-color="#5f786a"/>
+      <stop offset="0" stop-color="#7d9786"/>
+      <stop offset="1" stop-color="#4f6b58"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" fill="url(#bg)"/>
   <rect width="512" height="512" fill="url(#glow)"/>
-  <!-- plate -->
-  <circle cx="256" cy="262" r="158" fill="#7e4252" opacity=".22"/>
-  <circle cx="256" cy="252" r="158" fill="#fffdfb"/>
-  <circle cx="256" cy="252" r="116" fill="#f6ece8"/>
-  <circle cx="256" cy="252" r="116" fill="none" stroke="#ecdfdc" stroke-width="4"/>
-  <!-- sprig -->
-  <g transform="rotate(-38 256 252)">
-    <path d="M256 340 C256 300 256 220 256 164" stroke="#5f786a" stroke-width="7" stroke-linecap="round" fill="none"/>
-    <path d="M256 168 C232 186 230 214 256 236 C282 214 280 186 256 168 Z" fill="url(#leaf)"/>
-    <path d="M254 268 C228 270 206 254 198 226 C226 222 248 236 254 268 Z" fill="url(#leaf)"/>
-    <path d="M258 268 C284 270 306 254 314 226 C286 222 264 236 258 268 Z" fill="url(#leaf)"/>
-    <path d="M254 312 C230 316 210 302 200 278 C226 272 248 286 254 312 Z" fill="url(#leaf)" opacity=".9"/>
-    <path d="M258 312 C282 316 302 302 312 278 C286 272 264 286 258 312 Z" fill="url(#leaf)" opacity=".9"/>
+  <g transform="scale(5.12)">
+    <circle cx="50" cy="52.5" r="31" fill="#120d10" opacity=".45"/>
+    <circle cx="50" cy="50" r="31" fill="url(#plate)"/>
+    <circle cx="50" cy="50" r="23" fill="#f2d4da"/>
+    <circle cx="50" cy="50" r="23" fill="none" stroke="#c98591" stroke-width=".8" opacity=".5"/>
+    <g transform="rotate(-38 50 50)" fill="url(#leaf)">
+      <path d="M50 67V32" stroke="#4f6b58" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M50 33C45 37 45 42 50 46C55 42 55 37 50 33Z"/>
+      <path d="M49.5 52C44 52 40 49 39 44C44 43 48 46 49.5 52Z"/>
+      <path d="M50.5 52C56 52 60 49 61 44C56 43 52 46 50.5 52Z"/>
+      <path d="M49.5 61C44 62 40 59 38 54C44 53 48 56 49.5 61Z"/>
+      <path d="M50.5 61C56 62 60 59 62 54C56 53 52 56 50.5 61Z"/>
+    </g>
   </g>
 </svg>
